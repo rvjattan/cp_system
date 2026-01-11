@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
@@ -5,22 +8,24 @@ const QRCode = require('qrcode');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Session configuration
 app.use(cookieParser());
 app.use(session({
-  secret: 'checkpoint-system-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'checkpoint-system-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true if using HTTPS
+    secure: process.env.SESSION_SECURE === 'true', // Set to true if using HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'strict' // CSRF protection
   }
 }));
 
@@ -56,17 +61,36 @@ const db = new sqlite3.Database('./checkpoint.db', (err) => {
   }
 });
 
-// Admin credentials (in production, store hashed passwords in database)
+// Admin credentials - use environment variables or default (for development only)
+// In production, use environment variables with hashed passwords
 const ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'admin123' // Change this in production!
+  username: process.env.ADMIN_USERNAME || 'admin',
+  passwordHash: process.env.ADMIN_PASSWORD_HASH || null // If not set, will use plain text fallback (dev only)
 };
 
 // Reports credentials
 const REPORTS_CREDENTIALS = {
-  userid: 'admin',
-  password: 'Ravi@2026'
+  userid: process.env.REPORTS_USERID || 'admin',
+  passwordHash: process.env.REPORTS_PASSWORD_HASH || null // If not set, will use plain text fallback (dev only)
 };
+
+// Helper function to verify password (supports both bcrypt hashed and plain text for backward compatibility)
+async function verifyPassword(inputPassword, storedHash, fallbackPlainText) {
+  // If hash is provided, use bcrypt
+  if (storedHash && storedHash.startsWith('$2b$')) {
+    try {
+      return await bcrypt.compare(inputPassword, storedHash);
+    } catch (err) {
+      console.error('Error verifying password hash:', err);
+      return false;
+    }
+  }
+  // Fallback to plain text comparison (development only - NOT for production!)
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('WARNING: Using plain text password comparison in production!');
+  }
+  return inputPassword === fallbackPlainText;
+}
 
 // Initialize database tables
 function initializeDatabase() {
@@ -219,7 +243,7 @@ setInterval(() => {
 }, 60000); // Clean up every minute
 
 // Admin login
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
   const { username, password } = req.body;
   const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
 
@@ -249,21 +273,34 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(400).json({ error: 'Invalid input length' });
   }
 
-  if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-    // Successful login - reset attempts
-    loginAttempts.delete(clientIp);
-    req.session.isAuthenticated = true;
-    req.session.username = username;
-    res.json({
-      success: true,
-      message: 'Login successful'
-    });
-  } else {
-    // Failed login - increment attempts
-    attempts.count++;
-    attempts.lastAttempt = now;
-    loginAttempts.set(clientIp, attempts);
-    res.status(401).json({ error: 'Invalid username or password' });
+  try {
+    // Verify credentials
+    const usernameMatch = username === ADMIN_CREDENTIALS.username;
+    const passwordMatch = await verifyPassword(
+      password, 
+      ADMIN_CREDENTIALS.passwordHash, 
+      'admin123' // Fallback plain text (development only)
+    );
+
+    if (usernameMatch && passwordMatch) {
+      // Successful login - reset attempts
+      loginAttempts.delete(clientIp);
+      req.session.isAuthenticated = true;
+      req.session.username = username;
+      res.json({
+        success: true,
+        message: 'Login successful'
+      });
+    } else {
+      // Failed login - increment attempts
+      attempts.count++;
+      attempts.lastAttempt = now;
+      loginAttempts.set(clientIp, attempts);
+      res.status(401).json({ error: 'Invalid username or password' });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -598,7 +635,7 @@ function requireReportsAuth(req, res, next) {
 }
 
 // Reports login
-app.post('/api/reports/login', (req, res) => {
+app.post('/api/reports/login', async (req, res) => {
   const { userid, password } = req.body;
   const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
 
@@ -628,21 +665,34 @@ app.post('/api/reports/login', (req, res) => {
     return res.status(400).json({ error: 'Invalid input length' });
   }
 
-  if (userid === REPORTS_CREDENTIALS.userid && password === REPORTS_CREDENTIALS.password) {
-    // Successful login - reset attempts
-    loginAttempts.delete(clientIp);
-    req.session.reportsAuthenticated = true;
-    req.session.reportsUserid = userid;
-    res.json({
-      success: true,
-      message: 'Login successful'
-    });
-  } else {
-    // Failed login - increment attempts
-    attempts.count++;
-    attempts.lastAttempt = now;
-    loginAttempts.set(clientIp, attempts);
-    res.status(401).json({ error: 'Invalid user ID or password' });
+  try {
+    // Verify credentials
+    const useridMatch = userid === REPORTS_CREDENTIALS.userid;
+    const passwordMatch = await verifyPassword(
+      password, 
+      REPORTS_CREDENTIALS.passwordHash, 
+      'Ravi@2026' // Fallback plain text (development only)
+    );
+
+    if (useridMatch && passwordMatch) {
+      // Successful login - reset attempts
+      loginAttempts.delete(clientIp);
+      req.session.reportsAuthenticated = true;
+      req.session.reportsUserid = userid;
+      res.json({
+        success: true,
+        message: 'Login successful'
+      });
+    } else {
+      // Failed login - increment attempts
+      attempts.count++;
+      attempts.lastAttempt = now;
+      loginAttempts.set(clientIp, attempts);
+      res.status(401).json({ error: 'Invalid user ID or password' });
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

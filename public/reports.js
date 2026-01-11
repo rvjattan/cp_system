@@ -13,6 +13,44 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
+// Convert date to Indian Standard Time (IST - UTC+5:30) and format
+function formatDateIST(dateString, includeTime = true) {
+    if (!dateString) return 'N/A';
+    
+    // SQLite returns dates as "YYYY-MM-DD HH:MM:SS" (UTC without timezone indicator)
+    // Convert to ISO format with 'Z' to indicate UTC
+    let isoString = dateString;
+    if (typeof dateString === 'string' && !dateString.endsWith('Z') && !dateString.includes('T')) {
+        // Format: "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DDTHH:MM:SSZ"
+        isoString = dateString.replace(' ', 'T') + 'Z';
+    } else if (typeof dateString === 'string' && !dateString.endsWith('Z') && dateString.includes('T')) {
+        // Format: "YYYY-MM-DDTHH:MM:SS" -> "YYYY-MM-DDTHH:MM:SSZ"
+        isoString = dateString + 'Z';
+    }
+    
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+    const istTimestamp = date.getTime() + istOffset;
+    const istDate = new Date(istTimestamp);
+    
+    // Format: DD/MM/YYYY HH:MM:SS (IST) or DD/MM/YYYY
+    const day = String(istDate.getUTCDate()).padStart(2, '0');
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = istDate.getUTCFullYear();
+    
+    if (includeTime) {
+        const hours = String(istDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(istDate.getUTCSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} IST`;
+    } else {
+        return `${day}/${month}/${year}`;
+    }
+}
+
 // Check authentication and redirect if not logged in
 async function checkAuth() {
     try {
@@ -131,8 +169,8 @@ async function loadReports() {
             const statusClass = entry.status === 'allowed' ? 'allowed' : 
                                entry.status === 'denied' ? 'denied' : 'pending';
             const qrCodePath = `qr_codes/${entry.qr_code_id}.png`;
-            const registeredAt = new Date(entry.created_at).toLocaleString();
-            const updatedAt = new Date(entry.updated_at).toLocaleString();
+            const registeredAt = formatDateIST(entry.created_at, true);
+            const updatedAt = formatDateIST(entry.updated_at, true);
             
             tableHTML += `
                 <tr>
@@ -211,8 +249,8 @@ function exportToCSV() {
             entry.vehicle_type || '',
             entry.purpose || '',
             entry.status || '',
-            new Date(entry.created_at).toLocaleString(),
-            new Date(entry.updated_at).toLocaleString()
+            formatDateIST(entry.created_at, true),
+            formatDateIST(entry.updated_at, true)
         ]);
         
         // Convert to CSV
@@ -221,12 +259,16 @@ function exportToCSV() {
             ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         ].join('\n');
         
-        // Download CSV
+        // Download CSV - use IST date for filename
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istNow = new Date(now.getTime() + istOffset);
+        const filenameDate = `${String(istNow.getUTCFullYear())}-${String(istNow.getUTCMonth() + 1).padStart(2, '0')}-${String(istNow.getUTCDate()).padStart(2, '0')}`;
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `vehicle_entries_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `vehicle_entries_${filenameDate}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();

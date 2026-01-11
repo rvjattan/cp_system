@@ -13,6 +13,44 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
+// Convert date to Indian Standard Time (IST - UTC+5:30) and format
+function formatDateIST(dateString, includeTime = true) {
+    if (!dateString) return 'N/A';
+    
+    // SQLite returns dates as "YYYY-MM-DD HH:MM:SS" (UTC without timezone indicator)
+    // Convert to ISO format with 'Z' to indicate UTC
+    let isoString = dateString;
+    if (typeof dateString === 'string' && !dateString.endsWith('Z') && !dateString.includes('T')) {
+        // Format: "YYYY-MM-DD HH:MM:SS" -> "YYYY-MM-DDTHH:MM:SSZ"
+        isoString = dateString.replace(' ', 'T') + 'Z';
+    } else if (typeof dateString === 'string' && !dateString.endsWith('Z') && dateString.includes('T')) {
+        // Format: "YYYY-MM-DDTHH:MM:SS" -> "YYYY-MM-DDTHH:MM:SSZ"
+        isoString = dateString + 'Z';
+    }
+    
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+    const istTimestamp = date.getTime() + istOffset;
+    const istDate = new Date(istTimestamp);
+    
+    // Format: DD/MM/YYYY HH:MM:SS (IST) or DD/MM/YYYY
+    const day = String(istDate.getUTCDate()).padStart(2, '0');
+    const month = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+    const year = istDate.getUTCFullYear();
+    
+    if (includeTime) {
+        const hours = String(istDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(istDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(istDate.getUTCSeconds()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} IST`;
+    } else {
+        return `${day}/${month}/${year}`;
+    }
+}
+
 // Check authentication and redirect if not logged in
 async function checkAuth() {
     try {
@@ -137,7 +175,7 @@ async function loadQRCodes() {
                     <div class="qr-id">${escapedId}</div>
                     <div class="status ${statusClass}">${statusText}</div>
                     ${isRegistered ? `<div style="margin-top: 10px; font-size: 0.85em; color: #666;">Vehicle: ${escapedVehicleNumber}</div>` : ''}
-                    <div style="margin-top: 5px; font-size: 0.75em; color: #999;">Generated: ${new Date(qr.generated_at).toLocaleDateString()}</div>
+                    <div style="margin-top: 5px; font-size: 0.75em; color: #999;">Generated: ${formatDateIST(qr.generated_at, false)}</div>
                     <div class="qr-card-actions" style="margin-top: 10px; display: flex; gap: 5px; justify-content: center;">
                         <button onclick="printSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Print">🖨️</button>
                         <button onclick="downloadSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Download">💾</button>
@@ -237,7 +275,7 @@ function printSingle(qrId) {
             <div class="qr-container">
                 <div class="qr-id">${escapeHtml(qrId)}</div>
                 <img src="${window.location.origin}/qr_codes/${escapeHtml(qrId)}.png" alt="QR Code" class="qr-image" onerror="this.style.display='none';">
-                <div class="qr-info">Generated: ${new Date(qrCode.generated_at).toLocaleString()}</div>
+                <div class="qr-info">Generated: ${formatDateIST(qrCode.generated_at, true)}</div>
                 ${qrCode.vehicle_number ? `<div class="qr-info">Vehicle: ${escapeHtml(qrCode.vehicle_number)}</div>` : ''}
             </div>
         </body>
@@ -333,7 +371,7 @@ function printSelected() {
             <div class="qr-container">
                 <div class="qr-id">${escapeHtml(qr.id)}</div>
                 <img src="${window.location.origin}/qr_codes/${escapeHtml(qr.id)}.png" alt="QR Code" class="qr-image" onerror="this.style.display='none';">
-                <div class="qr-info">${new Date(qr.generated_at).toLocaleDateString()}</div>
+                <div class="qr-info">${formatDateIST(qr.generated_at, false)}</div>
                 ${qr.vehicle_number ? `<div class="qr-info">Vehicle: ${escapeHtml(qr.vehicle_number)}</div>` : ''}
             </div>
         `;
