@@ -385,6 +385,12 @@ header > div {
     white-space: nowrap;
 }
 
+.qr-group-header > div {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 .btn-small:hover {
     transform: translateY(-2px);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);

@@ -205,9 +205,14 @@ async function loadQRCodes() {
                                 <span class="qr-group-count">(${groupQRCodes.length} QR code${groupQRCodes.length !== 1 ? 's' : ''})</span>
                             </div>
                         </div>
-                        <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group">
-                            💾 Download All (${groupQRCodes.length})
-                        </button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group">
+                                💾 Download All (${groupQRCodes.length})
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteGroupQRs('${escapedDateKey}', ${groupIndex})" title="Delete all QR codes from this group">
+                                🗑️ Delete All (${groupQRCodes.length})
+                            </button>
+                        </div>
                     </div>
                     <div class="qr-group-content" id="${groupId}" style="display: none;">
                         <div class="qr-codes-grid">
@@ -235,6 +240,7 @@ async function loadQRCodes() {
                         <div class="qr-card-actions" style="margin-top: 10px; display: flex; gap: 5px; justify-content: center;">
                             <button onclick="printSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Print">🖨️</button>
                             <button onclick="downloadSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Download">💾</button>
+                            <button onclick="deleteSingleQR('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-danger" title="Delete">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -649,6 +655,161 @@ async function downloadGroupQRs(dateKey, groupIndex) {
     } catch (error) {
         console.error('Error creating ZIP file:', error);
         alert(`Error creating ZIP file: ${error.message}`);
+    }
+}
+
+// Delete single QR code
+async function deleteSingleQR(qrId) {
+    if (!confirm(`Are you sure you want to delete QR code ${qrId}? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/qr-codes/${qrId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.status === 401) {
+            window.location.href = 'admin-login.html';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload QR codes list
+            loadQRCodes();
+            // Show success message
+            const statusDiv = document.getElementById('generateStatus');
+            if (statusDiv) {
+                statusDiv.className = 'status-message success';
+                statusDiv.textContent = 'QR code deleted successfully!';
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete QR code');
+        }
+    } catch (error) {
+        alert(`Error deleting QR code: ${error.message}`);
+    }
+}
+
+// Delete selected QR codes
+async function deleteSelected() {
+    const selectedIds = getSelectedQRIds();
+
+    if (selectedIds.length === 0) {
+        alert('Please select at least one QR code to delete.');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} QR code(s)? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/qr-codes`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ qrIds: selectedIds })
+        });
+
+        if (response.status === 401) {
+            window.location.href = 'admin-login.html';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload QR codes list
+            loadQRCodes();
+            // Show success message
+            const statusDiv = document.getElementById('generateStatus');
+            if (statusDiv) {
+                statusDiv.className = 'status-message success';
+                statusDiv.textContent = `Successfully deleted ${data.deletedCount} QR code(s)!`;
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete QR codes');
+        }
+    } catch (error) {
+        alert(`Error deleting QR codes: ${error.message}`);
+    }
+}
+
+// Delete all QR codes from a specific group
+async function deleteGroupQRs(dateKey, groupIndex) {
+    // Find all QR codes from this date group
+    const allGroups = {};
+    window.allQRCodes.forEach(qr => {
+        const date = new Date(qr.generated_at);
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istDate = new Date(date.getTime() + istOffset);
+        const qrDateKey = istDate.toISOString().split('T')[0];
+        
+        if (!allGroups[qrDateKey]) {
+            allGroups[qrDateKey] = [];
+        }
+        allGroups[qrDateKey].push(qr);
+    });
+    
+    const groupQRCodes = allGroups[dateKey] || [];
+    
+    if (groupQRCodes.length === 0) {
+        alert('No QR codes found for this group.');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete all ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const qrIds = groupQRCodes.map(qr => qr.id);
+        
+        const response = await fetch(`${API_BASE}/admin/qr-codes`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ qrIds })
+        });
+
+        if (response.status === 401) {
+            window.location.href = 'admin-login.html';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload QR codes list
+            loadQRCodes();
+            // Show success message
+            const statusDiv = document.getElementById('generateStatus');
+            if (statusDiv) {
+                statusDiv.className = 'status-message success';
+                statusDiv.textContent = `Successfully deleted ${data.deletedCount} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}!`;
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                }, 3000);
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete QR codes');
+        }
+    } catch (error) {
+        alert(`Error deleting QR codes: ${error.message}`);
     }
 }
 

@@ -427,6 +427,107 @@ app.get('/api/admin/qr-codes', requireAuth, (req, res) => {
   });
 });
 
+// Delete single QR code
+app.delete('/api/admin/qr-codes/:qrId', requireAuth, (req, res) => {
+  let { qrId } = req.params;
+  
+  // Validate and sanitize QR code ID
+  qrId = sanitizeQRCodeId(qrId);
+  if (!qrId || !isValidQRCodeId(qrId)) {
+    return res.status(400).json({ error: 'Invalid QR code ID format' });
+  }
+
+  // Delete QR code image file
+  const qrPath = path.join(qrCodesDir, `${qrId}.png`);
+  const resolvedPath = path.resolve(qrPath);
+  const resolvedDir = path.resolve(qrCodesDir);
+  
+  // Security check: ensure path is within qrCodesDir
+  if (!resolvedPath.startsWith(resolvedDir)) {
+    return res.status(400).json({ error: 'Invalid file path' });
+  }
+
+  // Delete from database (cascade will handle vehicle_entries)
+  db.run('DELETE FROM qr_codes WHERE id = ?', [qrId], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'QR code not found' });
+    }
+
+    // Delete image file if it exists
+    if (fs.existsSync(qrPath)) {
+      fs.unlink(qrPath, (unlinkErr) => {
+        if (unlinkErr) {
+          console.error('Error deleting QR code image:', unlinkErr);
+          // Still return success since database entry is deleted
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'QR code deleted successfully'
+    });
+  });
+});
+
+// Delete multiple QR codes
+app.delete('/api/admin/qr-codes', requireAuth, (req, res) => {
+  const { qrIds } = req.body;
+
+  if (!qrIds || !Array.isArray(qrIds) || qrIds.length === 0) {
+    return res.status(400).json({ error: 'QR code IDs array required' });
+  }
+
+  // Validate all QR code IDs
+  const validQrIds = [];
+  for (const qrId of qrIds) {
+    const sanitized = sanitizeQRCodeId(qrId);
+    if (sanitized && isValidQRCodeId(sanitized)) {
+      validQrIds.push(sanitized);
+    }
+  }
+
+  if (validQrIds.length === 0) {
+    return res.status(400).json({ error: 'No valid QR code IDs provided' });
+  }
+
+  // Delete from database
+  const placeholders = validQrIds.map(() => '?').join(',');
+  db.run(`DELETE FROM qr_codes WHERE id IN (${placeholders})`, validQrIds, function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    const deletedCount = this.changes;
+
+    // Delete image files
+    let deletedFiles = 0;
+    validQrIds.forEach(qrId => {
+      const qrPath = path.join(qrCodesDir, `${qrId}.png`);
+      const resolvedPath = path.resolve(qrPath);
+      const resolvedDir = path.resolve(qrCodesDir);
+      
+      if (resolvedPath.startsWith(resolvedDir) && fs.existsSync(qrPath)) {
+        fs.unlink(qrPath, (unlinkErr) => {
+          if (!unlinkErr) {
+            deletedFiles++;
+          }
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} QR code(s) successfully`,
+      deletedCount
+    });
+  });
+});
+
 // ==================== GUARD ENDPOINTS ====================
 
 // Scan QR code - get vehicle info or return unregistered
