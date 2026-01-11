@@ -133,7 +133,7 @@ async function generateQRCodes(count) {
     }
 }
 
-// Load all QR codes
+// Load all QR codes grouped by date
 async function loadQRCodes() {
     const listDiv = document.getElementById('qrCodesList');
     listDiv.innerHTML = '<p>Loading...</p>';
@@ -158,31 +158,97 @@ async function loadQRCodes() {
         // Store QR codes globally for print/download functions
         window.allQRCodes = qrCodes;
         
-        listDiv.innerHTML = qrCodes.map((qr, index) => {
-            const isRegistered = qr.vehicle_number !== null;
-            const statusClass = isRegistered ? 'registered' : 'unregistered';
-            const statusText = isRegistered ? 'Registered' : 'Unregistered';
+        // Group QR codes by date (day)
+        const groupedByDate = {};
+        qrCodes.forEach(qr => {
+            const date = new Date(qr.generated_at);
+            // Create date key in IST (YYYY-MM-DD format)
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            const istDate = new Date(date.getTime() + istOffset);
+            const dateKey = istDate.toISOString().split('T')[0]; // YYYY-MM-DD
             
-            const escapedId = escapeHtml(qr.id);
-            const escapedVehicleNumber = isRegistered ? escapeHtml(qr.vehicle_number) : '';
-            return `
-                <div class="qr-code-card" data-qr-id="${escapedId}">
-                    <div class="qr-card-checkbox">
-                        <input type="checkbox" class="qr-checkbox" id="qr-${index}" value="${escapedId}" onchange="updateSelectionCount()">
-                        <label for="qr-${index}"></label>
+            if (!groupedByDate[dateKey]) {
+                groupedByDate[dateKey] = [];
+            }
+            groupedByDate[dateKey].push(qr);
+        });
+        
+        // Sort dates (newest first)
+        const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+        
+        // Build HTML for grouped list
+        let html = '<div class="qr-groups-list">';
+        
+        sortedDates.forEach((dateKey, groupIndex) => {
+            const groupQRCodes = groupedByDate[dateKey];
+            const firstQR = groupQRCodes[0];
+            const dateObj = new Date(firstQR.generated_at);
+            const istOffset = 5.5 * 60 * 60 * 1000;
+            const istDate = new Date(dateObj.getTime() + istOffset);
+            
+            // Format date and time for display
+            const dateDisplay = formatDateIST(firstQR.generated_at, true);
+            const dateOnly = formatDateIST(firstQR.generated_at, false);
+            const timeDisplay = formatDateIST(firstQR.generated_at, true).split(' ')[1] + ' IST';
+            
+            const groupId = `group-${groupIndex}`;
+            const escapedDateKey = escapeHtml(dateKey);
+            
+            html += `
+                <div class="qr-group-item">
+                    <div class="qr-group-header" onclick="toggleGroup('${groupId}')">
+                        <div class="qr-group-header-left">
+                            <span class="qr-group-toggle" id="toggle-${groupId}">▼</span>
+                            <div class="qr-group-info">
+                                <span class="qr-group-date">${escapeHtml(dateOnly)}</span>
+                                <span class="qr-group-time">${escapeHtml(timeDisplay)}</span>
+                                <span class="qr-group-count">(${groupQRCodes.length} QR code${groupQRCodes.length !== 1 ? 's' : ''})</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group">
+                            💾 Download All (${groupQRCodes.length})
+                        </button>
                     </div>
-                    <img src="/qr_codes/${escapedId}.png" alt="QR Code ${escapedId}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'150\'%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3EQR Code%3C/text%3E%3C/svg%3E'">
-                    <div class="qr-id">${escapedId}</div>
-                    <div class="status ${statusClass}">${statusText}</div>
-                    ${isRegistered ? `<div style="margin-top: 10px; font-size: 0.85em; color: #666;">Vehicle: ${escapedVehicleNumber}</div>` : ''}
-                    <div style="margin-top: 5px; font-size: 0.75em; color: #999;">Generated: ${formatDateIST(qr.generated_at, false)}</div>
-                    <div class="qr-card-actions" style="margin-top: 10px; display: flex; gap: 5px; justify-content: center;">
-                        <button onclick="printSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Print">🖨️</button>
-                        <button onclick="downloadSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Download">💾</button>
+                    <div class="qr-group-content" id="${groupId}" style="display: none;">
+                        <div class="qr-codes-grid">
+            `;
+            
+            groupQRCodes.forEach((qr, index) => {
+                const isRegistered = qr.vehicle_number !== null;
+                const statusClass = isRegistered ? 'registered' : 'unregistered';
+                const statusText = isRegistered ? 'Registered' : 'Unregistered';
+                
+                const escapedId = escapeHtml(qr.id);
+                const escapedVehicleNumber = isRegistered ? escapeHtml(qr.vehicle_number) : '';
+                const uniqueIndex = `${groupIndex}-${index}`;
+                
+                html += `
+                    <div class="qr-code-card" data-qr-id="${escapedId}">
+                        <div class="qr-card-checkbox">
+                            <input type="checkbox" class="qr-checkbox" id="qr-${uniqueIndex}" value="${escapedId}" onchange="updateSelectionCount()">
+                            <label for="qr-${uniqueIndex}"></label>
+                        </div>
+                        <img src="/qr_codes/${escapedId}.png" alt="QR Code ${escapedId}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'150\' height=\'150\'%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3EQR Code%3C/text%3E%3C/svg%3E'">
+                        <div class="qr-id">${escapedId}</div>
+                        <div class="status ${statusClass}">${statusText}</div>
+                        ${isRegistered ? `<div style="margin-top: 10px; font-size: 0.85em; color: #666;">Vehicle: ${escapedVehicleNumber}</div>` : ''}
+                        <div class="qr-card-actions" style="margin-top: 10px; display: flex; gap: 5px; justify-content: center;">
+                            <button onclick="printSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Print">🖨️</button>
+                            <button onclick="downloadSingle('${escapedId.replace(/'/g, "\\'")}')" class="btn-small btn-secondary" title="Download">💾</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        </div>
                     </div>
                 </div>
             `;
-        }).join('');
+        });
+        
+        html += '</div>';
+        listDiv.innerHTML = html;
         
         updateSelectionCount();
     } catch (error) {
@@ -390,7 +456,7 @@ function printSelected() {
     }, 250);
 }
 
-// Download multiple selected QR codes as ZIP (using JSZip if available, or individual downloads)
+// Download multiple selected QR codes as ZIP file
 async function downloadSelected() {
     const selectedIds = getSelectedQRIds();
     
@@ -399,22 +465,190 @@ async function downloadSelected() {
         return;
     }
     
-    if (selectedIds.length === 1) {
-        // Single download
-        downloadSingle(selectedIds[0]);
+    // Check if JSZip is available
+    if (typeof JSZip === 'undefined') {
+        // Fallback to single download if JSZip not loaded
+        if (selectedIds.length === 1) {
+            downloadSingle(selectedIds[0]);
+        } else {
+            alert('ZIP functionality not available. Please download QR codes individually.');
+        }
         return;
     }
     
-    // For multiple downloads, we'll download them one by one
-    // (In a production environment, you might want to create a ZIP file on the server)
-    const confirmDownload = confirm(`Download ${selectedIds.length} QR codes? They will download one by one.`);
-    
-    if (confirmDownload) {
-        for (let i = 0; i < selectedIds.length; i++) {
-            setTimeout(() => {
-                downloadSingle(selectedIds[i]);
-            }, i * 300); // Stagger downloads to avoid browser blocking
+    try {
+        // Show loading message
+        const statusDiv = document.getElementById('generateStatus');
+        if (statusDiv) {
+            statusDiv.className = 'status-message info';
+            statusDiv.textContent = `Preparing ZIP file with ${selectedIds.length} QR code(s)...`;
         }
+        
+        const zip = new JSZip();
+        const promises = [];
+        
+        // Fetch all QR code images and add them to ZIP
+        for (const qrId of selectedIds) {
+            const promise = fetch(`/qr_codes/${qrId}.png`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch QR code ${qrId}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Add file to ZIP with descriptive name
+                    zip.file(`QR_Code_${qrId}.png`, blob);
+                })
+                .catch(error => {
+                    console.error(`Error fetching QR code ${qrId}:`, error);
+                    // Continue with other files even if one fails
+                });
+            
+            promises.push(promise);
+        }
+        
+        // Wait for all images to be fetched
+        await Promise.all(promises);
+        
+        // Generate ZIP file
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(zipBlob);
+        const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        link.href = url;
+        link.download = `QR_Codes_${selectedIds.length}_${timestamp}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        if (statusDiv) {
+            statusDiv.className = 'status-message success';
+            statusDiv.textContent = `Successfully downloaded ${selectedIds.length} QR code(s) as ZIP file!`;
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error creating ZIP file:', error);
+        alert(`Error creating ZIP file: ${error.message}. Please try downloading individually.`);
+        
+        // Fallback to individual downloads
+        if (selectedIds.length === 1) {
+            downloadSingle(selectedIds[0]);
+        }
+    }
+}
+
+// Toggle group expand/collapse
+function toggleGroup(groupId) {
+    const content = document.getElementById(groupId);
+    const toggle = document.getElementById(`toggle-${groupId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '▶';
+    }
+}
+
+// Download all QR codes from a specific group
+async function downloadGroupQRs(dateKey, groupIndex) {
+    if (typeof JSZip === 'undefined') {
+        alert('ZIP functionality not available. Please download QR codes individually.');
+        return;
+    }
+    
+    // Find all QR codes from this date group
+    const allGroups = {};
+    window.allQRCodes.forEach(qr => {
+        const date = new Date(qr.generated_at);
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istDate = new Date(date.getTime() + istOffset);
+        const qrDateKey = istDate.toISOString().split('T')[0];
+        
+        if (!allGroups[qrDateKey]) {
+            allGroups[qrDateKey] = [];
+        }
+        allGroups[qrDateKey].push(qr);
+    });
+    
+    const groupQRCodes = allGroups[dateKey] || [];
+    
+    if (groupQRCodes.length === 0) {
+        alert('No QR codes found for this group.');
+        return;
+    }
+    
+    try {
+        // Show loading message
+        const statusDiv = document.getElementById('generateStatus');
+        if (statusDiv) {
+            statusDiv.className = 'status-message info';
+            statusDiv.textContent = `Preparing ZIP file with ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}...`;
+        }
+        
+        const zip = new JSZip();
+        const promises = [];
+        
+        // Fetch all QR code images and add them to ZIP
+        for (const qr of groupQRCodes) {
+            const promise = fetch(`/qr_codes/${qr.id}.png`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch QR code ${qr.id}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Add file to ZIP with descriptive name
+                    zip.file(`QR_Code_${qr.id}.png`, blob);
+                })
+                .catch(error => {
+                    console.error(`Error fetching QR code ${qr.id}:`, error);
+                });
+            
+            promises.push(promise);
+        }
+        
+        // Wait for all images to be fetched
+        await Promise.all(promises);
+        
+        // Generate ZIP file
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(zipBlob);
+        const dateFormatted = dateKey.replace(/-/g, '');
+        link.href = url;
+        link.download = `QR_Codes_${dateFormatted}_${groupQRCodes.length}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        if (statusDiv) {
+            statusDiv.className = 'status-message success';
+            statusDiv.textContent = `Successfully downloaded ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}!`;
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error creating ZIP file:', error);
+        alert(`Error creating ZIP file: ${error.message}`);
     }
 }
 
