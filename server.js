@@ -62,6 +62,12 @@ const ADMIN_CREDENTIALS = {
   password: 'admin123' // Change this in production!
 };
 
+// Reports credentials
+const REPORTS_CREDENTIALS = {
+  userid: 'admin',
+  password: 'Ravi@2026'
+};
+
 // Initialize database tables
 function initializeDatabase() {
   db.serialize(() => {
@@ -565,6 +571,107 @@ app.put('/api/guard/update-status/:qrId', (req, res) => {
 
 // Get all vehicle entries
 app.get('/api/guard/entries', (req, res) => {
+  db.all(`
+    SELECT 
+      ve.*,
+      qc.generated_at as qr_generated_at
+    FROM vehicle_entries ve
+    JOIN qr_codes qc ON ve.qr_code_id = qc.id
+    ORDER BY ve.updated_at DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// ==================== REPORTS ENDPOINTS ====================
+
+// Reports authentication middleware
+function requireReportsAuth(req, res, next) {
+  if (req.session && req.session.reportsAuthenticated) {
+    return next();
+  } else {
+    return res.status(401).json({ error: 'Unauthorized - Please login' });
+  }
+}
+
+// Reports login
+app.post('/api/reports/login', (req, res) => {
+  const { userid, password } = req.body;
+  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+
+  if (!userid || !password) {
+    return res.status(400).json({ error: 'User ID and password required' });
+  }
+
+  // Rate limiting check (reuse admin rate limiting)
+  const now = Date.now();
+  const attempts = loginAttempts.get(clientIp) || { count: 0, lastAttempt: 0 };
+  
+  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
+    const timeSinceLastAttempt = now - attempts.lastAttempt;
+    if (timeSinceLastAttempt < LOGIN_WINDOW_MS) {
+      const remainingTime = Math.ceil((LOGIN_WINDOW_MS - timeSinceLastAttempt) / 1000 / 60);
+      return res.status(429).json({ 
+        error: `Too many login attempts. Please try again in ${remainingTime} minute(s).` 
+      });
+    } else {
+      // Reset after window expires
+      attempts.count = 0;
+    }
+  }
+
+  // Validate input length
+  if (userid.length > 100 || password.length > 100) {
+    return res.status(400).json({ error: 'Invalid input length' });
+  }
+
+  if (userid === REPORTS_CREDENTIALS.userid && password === REPORTS_CREDENTIALS.password) {
+    // Successful login - reset attempts
+    loginAttempts.delete(clientIp);
+    req.session.reportsAuthenticated = true;
+    req.session.reportsUserid = userid;
+    res.json({
+      success: true,
+      message: 'Login successful'
+    });
+  } else {
+    // Failed login - increment attempts
+    attempts.count++;
+    attempts.lastAttempt = now;
+    loginAttempts.set(clientIp, attempts);
+    res.status(401).json({ error: 'Invalid user ID or password' });
+  }
+});
+
+// Check reports authentication status
+app.get('/api/reports/check-auth', (req, res) => {
+  if (req.session && req.session.reportsAuthenticated) {
+    res.json({
+      authenticated: true,
+      userid: req.session.reportsUserid
+    });
+  } else {
+    res.json({
+      authenticated: false
+    });
+  }
+});
+
+// Reports logout
+app.post('/api/reports/logout', (req, res) => {
+  req.session.reportsAuthenticated = false;
+  req.session.reportsUserid = null;
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+});
+
+// Get all vehicle entries for reports (protected)
+app.get('/api/reports/entries', requireReportsAuth, (req, res) => {
   db.all(`
     SELECT 
       ve.*,

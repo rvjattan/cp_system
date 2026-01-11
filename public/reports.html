@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Reports Panel - Vehicle Entries</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .reports-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .reports-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .reports-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .reports-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .reports-table tr:hover {
+            background: #f5f5f5;
+        }
+        .reports-table tr:last-child td {
+            border-bottom: none;
+        }
+        .qr-code-img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px;
+            background: white;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-allowed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-denied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+        }
+        .filter-group select,
+        .filter-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .reports-table {
+                font-size: 0.85em;
+            }
+            .reports-table th,
+            .reports-table td {
+                padding: 8px;
+            }
+            .qr-code-img {
+                width: 60px;
+                height: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container reports-container">
+        <header>
+            <h1>📊 Reports Panel</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="userInfo" style="color: white; font-size: 0.9em;"></span>
+                <a href="index.html" class="back-btn">← Back to Home</a>
+                <button onclick="logout()" class="back-btn" style="background: rgba(255, 255, 255, 0.3); border: none; cursor: pointer;">Logout</button>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2>All Vehicle Entries</h2>
+            
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label>Status:</label>
+                    <select id="statusFilter" onchange="loadReports()">
+                        <option value="">All</option>
+                        <option value="allowed">Allowed</option>
+                        <option value="denied">Denied</option>
+                        <option value="pending">Pending</option>
+                    </select>
+                    
+                    <label>Search:</label>
+                    <input type="text" id="searchInput" placeholder="Vehicle Number, Driver Name, QR Code..." onkeyup="loadReports()" style="min-width: 200px;">
+                    
+                    <button onclick="loadReports()" class="btn btn-secondary">Refresh</button>
+                    <button onclick="exportToCSV()" class="btn btn-primary">📥 Export CSV</button>
+                </div>
+            </div>
+
+            <div id="reportsList" class="no-data">Loading reports...</div>
+        </section>
+    </div>
+
+    <script src="reports.js"></script>
+</body>
+</html>

@@ -3,14 +3,14 @@ const API_BASE = '/api';
 // Check if already logged in
 async function checkAuth() {
     try {
-        const response = await fetch(`${API_BASE}/admin/check-auth`, {
+        const response = await fetch(`${API_BASE}/reports/check-auth`, {
             credentials: 'include'
         });
         const data = await response.json();
         
         if (data.authenticated) {
-            // Already logged in, redirect to admin panel
-            window.location.href = 'admin.html';
+            // Already logged in, redirect to reports panel
+            window.location.href = 'reports.html';
         }
     } catch (error) {
         console.error('Auth check error:', error);
@@ -21,7 +21,7 @@ async function checkAuth() {
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const username = document.getElementById('username').value;
+    const userid = document.getElementById('userid').value;
     const password = document.getElementById('password').value;
     const statusDiv = document.getElementById('loginStatus');
     
@@ -29,13 +29,13 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     statusDiv.textContent = 'Logging in...';
     
     try {
-        const response = await fetch(`${API_BASE}/admin/login`, {
+        const response = await fetch(`${API_BASE}/reports/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ userid, password })
         });
         
         const data = await response.json();
@@ -44,7 +44,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             statusDiv.className = 'status-message success';
             statusDiv.textContent = 'Login successful! Redirecting...';
             setTimeout(() => {
-                window.location.href = 'admin.html';
+                window.location.href = 'reports.html';
             }, 1000);
         } else {
             throw new Error(data.error || 'Login failed');
@@ -59,4 +59,3 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 window.addEventListener('DOMContentLoaded', () => {
     checkAuth();
 });
-

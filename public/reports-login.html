@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Reports Login - Checkpoint System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container login-container">
+        <header>
+            <h1>📊 Reports Login</h1>
+            <a href="index.html" class="back-btn">← Back to Home</a>
+        </header>
+
+        <section class="section">
+            <div class="login-form-container">
+                <form id="loginForm" class="form">
+                    <div class="form-group">
+                        <label>User ID *</label>
+                        <input type="text" id="userid" required class="form-control" placeholder="Enter user ID" autofocus>
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="password" required class="form-control" placeholder="Enter password">
+                    </div>
+                    <div id="loginStatus" class="status-message"></div>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <script src="reports-login.js"></script>
+</body>
+</html>
