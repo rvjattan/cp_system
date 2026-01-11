@@ -687,6 +687,11 @@ app.get('/api/reports/entries', requireReportsAuth, (req, res) => {
   });
 });
 
+// 404 handler for API routes (must be before static middleware fallback)
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
