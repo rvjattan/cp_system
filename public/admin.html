@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Admin Panel - QR Code Generation</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>👤 Admin Panel</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="userInfo" style="color: white; font-size: 0.9em;"></span>
+                <a href="index.html" class="back-btn">← Back to Home</a>
+                <button onclick="logout()" class="back-btn" style="background: rgba(255, 255, 255, 0.3); border: none; cursor: pointer;">Logout</button>
+            </div>
+        </header>
+
+        <section class="section">
+            <h2>Generate QR Codes</h2>
+            <div class="generate-section">
+                <p>Generate blank QR codes in advance. Each QR code will have a unique ID.</p>
+                <div class="button-group">
+                    <button onclick="generateQRCodes(10)" class="btn btn-primary">Generate 10 QR Codes</button>
+                    <button onclick="generateQRCodes(50)" class="btn btn-primary">Generate 50 QR Codes</button>
+                    <button onclick="generateQRCodes(100)" class="btn btn-primary">Generate 100 QR Codes</button>
+                </div>
+                <div id="generateStatus" class="status-message"></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>All QR Codes</h2>
+            <div class="controls">
+                <button onclick="loadQRCodes()" class="btn btn-secondary">Refresh List</button>
+                <button onclick="selectAll()" class="btn btn-secondary">Select All</button>
+                <button onclick="deselectAll()" class="btn btn-secondary">Deselect All</button>
+                <span id="selectionCount" class="selection-count">0 selected</span>
+                <button onclick="printSelected()" class="btn btn-primary">🖨️ Print Selected</button>
+                <button onclick="downloadSelected()" class="btn btn-primary">💾 Download Selected</button>
+            </div>
+            <div id="qrCodesList" class="qr-codes-grid"></div>
+        </section>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
+

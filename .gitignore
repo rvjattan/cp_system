@@ -1,0 +1,8 @@
+node_modules/
+checkpoint.db
+checkpoint.db-journal
+public/qr_codes/*.png
+.DS_Store
+*.log
+.env
+

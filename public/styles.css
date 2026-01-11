@@ -1,0 +1,792 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 10px;
+    color: #333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 15px;
+    text-align: center;
+    position: relative;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    word-wrap: break-word;
+}
+
+header > div {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#userInfo {
+    color: white;
+    font-size: 0.9em;
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.back-btn {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    transition: background 0.3s;
+    border: none;
+    font-size: 0.9em;
+    cursor: pointer;
+    font-family: inherit;
+    min-height: 44px; /* Touch target size */
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.menu {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    padding: 40px;
+}
+
+.menu-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 40px;
+    border-radius: 15px;
+    text-decoration: none;
+    color: #333;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.menu-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.menu-card .icon {
+    font-size: 4em;
+    margin-bottom: 20px;
+}
+
+.menu-card h2 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+}
+
+.menu-card p {
+    color: #666;
+    font-size: 1.1em;
+}
+
+.section {
+    padding: 20px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.section h2 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.btn {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    min-height: 44px; /* Touch target size */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+    transform: translateY(-2px);
+}
+
+.btn-success:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+}
+
+.btn-danger:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.status-message {
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    font-weight: 500;
+}
+
+.status-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-message.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.generate-section {
+    text-align: center;
+}
+
+.generate-section p {
+    margin-bottom: 20px;
+    color: #666;
+    font-size: 1.1em;
+}
+
+.qr-codes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.qr-code-card {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.qr-code-card:hover {
+    border-color: #667eea;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.qr-card-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.qr-card-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.qr-card-actions {
+    margin-top: 10px;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.85em;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.qr-code-card img {
+    width: 100%;
+    max-width: 150px;
+    height: auto;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.qr-code-card .qr-id {
+    font-size: 0.9em;
+    color: #667eea;
+    font-weight: 600;
+    word-break: break-all;
+    margin-bottom: 5px;
+}
+
+.qr-code-card .status {
+    font-size: 0.8em;
+    padding: 5px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-top: 5px;
+}
+
+.status.registered {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status.unregistered {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.camera-container {
+    max-width: 500px;
+    margin: 20px auto;
+    border: 3px solid #667eea;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+}
+
+#video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.scan-section {
+    text-align: center;
+}
+
+.form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: border-color 0.3s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.vehicle-info-card {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.vehicle-info-card h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+    flex: 0 0 auto;
+    min-width: 120px;
+}
+
+.info-value {
+    color: #333;
+    flex: 1 1 auto;
+    text-align: right;
+    word-break: break-word;
+}
+
+.entries-list {
+    margin-top: 20px;
+}
+
+.entry-card {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s;
+}
+
+.entry-card:hover {
+    border-color: #667eea;
+    transform: translateX(5px);
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.entry-header h3 {
+    color: #667eea;
+    margin: 0;
+    font-size: 1.1em;
+    word-break: break-word;
+    flex: 1 1 auto;
+}
+
+.status-badge {
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.status-badge.allowed {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.denied {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.selection-count {
+    padding: 8px 15px;
+    background: #e9ecef;
+    border-radius: 5px;
+    font-weight: 600;
+    color: #667eea;
+    display: none;
+}
+
+.login-container {
+    max-width: 500px;
+}
+
+.login-form-container {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.login-info {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.login-info code {
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container {
+        border-radius: 10px;
+        margin: 5px;
+    }
+    
+    header {
+        padding: 15px 10px;
+        min-height: auto;
+    }
+    
+    header h1 {
+        font-size: 1.5em;
+        margin-bottom: 8px;
+        padding: 0 50px;
+    }
+    
+    header > div {
+        position: static;
+        margin-top: 10px;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    #userInfo {
+        font-size: 0.8em;
+        padding: 4px 8px;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    
+    .back-btn {
+        position: static;
+        display: inline-block;
+        margin: 5px;
+        font-size: 0.85em;
+        padding: 10px 14px;
+    }
+    
+    .section {
+        padding: 15px 10px;
+    }
+    
+    .section h2 {
+        font-size: 1.3em;
+        margin-bottom: 12px;
+    }
+    
+    .menu {
+        grid-template-columns: 1fr;
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .menu-card {
+        padding: 25px 20px;
+    }
+    
+    .menu-card .icon {
+        font-size: 3em;
+        margin-bottom: 15px;
+    }
+    
+    .menu-card h2 {
+        font-size: 1.4em;
+    }
+    
+    .menu-card p {
+        font-size: 0.95em;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .btn {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 0.95em;
+    }
+    
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .controls .btn {
+        width: 100%;
+    }
+    
+    .selection-count {
+        width: 100%;
+        text-align: center;
+        padding: 10px;
+    }
+    
+    .qr-codes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 15px;
+    }
+    
+    .qr-code-card {
+        padding: 12px;
+    }
+    
+    .qr-code-card img {
+        max-width: 120px;
+    }
+    
+    .qr-code-card .qr-id {
+        font-size: 0.8em;
+    }
+    
+    .camera-container {
+        max-width: 100%;
+        margin: 15px auto;
+        border-width: 2px;
+    }
+    
+    .form {
+        max-width: 100%;
+    }
+    
+    .form-control {
+        padding: 14px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .vehicle-info-card {
+        padding: 15px;
+        margin: 0;
+    }
+    
+    .vehicle-info-card h3 {
+        font-size: 1.2em;
+        margin-bottom: 12px;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 0;
+    }
+    
+    .info-label {
+        min-width: auto;
+        margin-bottom: 4px;
+        font-size: 0.9em;
+    }
+    
+    .info-value {
+        text-align: left;
+        width: 100%;
+        font-size: 1em;
+    }
+    
+    .entry-card {
+        padding: 15px;
+    }
+    
+    .entry-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .entry-header h3 {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .status-badge {
+        font-size: 0.85em;
+        padding: 6px 12px;
+    }
+    
+    .generate-section p {
+        font-size: 0.95em;
+        padding: 0 10px;
+    }
+    
+    .status-message {
+        padding: 12px;
+        font-size: 0.9em;
+    }
+    
+    .btn-small {
+        padding: 8px 12px;
+        font-size: 0.8em;
+        min-height: 36px;
+    }
+}
+
+/* Extra small devices (phones in portrait) */
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.3em;
+        padding: 0 40px;
+    }
+    
+    .section h2 {
+        font-size: 1.2em;
+    }
+    
+    .menu-card {
+        padding: 20px 15px;
+    }
+    
+    .menu-card .icon {
+        font-size: 2.5em;
+    }
+    
+    .menu-card h2 {
+        font-size: 1.2em;
+    }
+    
+    .qr-codes-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .qr-code-card img {
+        max-width: 100px;
+    }
+    
+    .btn {
+        font-size: 0.9em;
+        padding: 12px 16px;
+    }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    header {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 1.3em;
+        margin-bottom: 5px;
+    }
+    
+    .section {
+        padding: 15px 10px;
+    }
+    
+    .camera-container {
+        max-width: 400px;
+    }
+}
+
