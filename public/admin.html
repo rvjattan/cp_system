@@ -21,10 +21,15 @@
             <h2>Generate QR Codes</h2>
             <div class="generate-section">
                 <p>Generate blank QR codes in advance. Each QR code will have a unique ID.</p>
-                <div class="button-group">
-                    <button onclick="generateQRCodes(10)" class="btn btn-primary">Generate 10 QR Codes</button>
-                    <button onclick="generateQRCodes(50)" class="btn btn-primary">Generate 50 QR Codes</button>
-                    <button onclick="generateQRCodes(100)" class="btn btn-primary">Generate 100 QR Codes</button>
+                <div class="generate-form">
+                    <div class="input-group">
+                        <label for="qrCountInput">Number of QR Codes to Generate:</label>
+                        <div class="input-with-button">
+                            <input type="number" id="qrCountInput" class="form-control" min="1" max="1000" value="10" placeholder="Enter number">
+                            <button onclick="generateQRCodesFromInput()" class="btn btn-primary">Generate</button>
+                        </div>
+                        <small class="input-hint">Enter any positive number (1-1000)</small>
+                    </div>
                 </div>
                 <div id="generateStatus" class="status-message"></div>
             </div>

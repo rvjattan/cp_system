@@ -97,6 +97,22 @@ async function logout() {
     }
 }
 
+// Generate QR codes from input field
+function generateQRCodesFromInput() {
+    const input = document.getElementById('qrCountInput');
+    const count = parseInt(input.value, 10);
+    
+    if (!count || count < 1 || count > 1000) {
+        const statusDiv = document.getElementById('generateStatus');
+        statusDiv.className = 'status-message error';
+        statusDiv.textContent = 'Please enter a valid number between 1 and 1000.';
+        input.focus();
+        return;
+    }
+    
+    generateQRCodes(count);
+}
+
 // Generate QR codes
 async function generateQRCodes(count) {
     const statusDiv = document.getElementById('generateStatus');
@@ -205,9 +221,9 @@ async function loadQRCodes() {
                                 <span class="qr-group-count">(${groupQRCodes.length} QR code${groupQRCodes.length !== 1 ? 's' : ''})</span>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group">
-                                💾 Download All (${groupQRCodes.length})
+                        <div class="qr-group-actions">
+                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group as ZIP">
+                                💾 Download ZIP (${groupQRCodes.length})
                             </button>
                             <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteGroupQRs('${escapedDateKey}', ${groupIndex})" title="Delete all QR codes from this group">
                                 🗑️ Delete All (${groupQRCodes.length})
@@ -812,6 +828,19 @@ async function deleteGroupQRs(dateKey, groupIndex) {
         alert(`Error deleting QR codes: ${error.message}`);
     }
 }
+
+// Allow Enter key to trigger generation
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('qrCountInput');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                generateQRCodesFromInput();
+            }
+        });
+    }
+});
 
 // Load QR codes on page load
 window.addEventListener('DOMContentLoaded', async () => {

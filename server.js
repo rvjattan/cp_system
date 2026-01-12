@@ -337,8 +337,10 @@ app.post('/api/admin/logout', (req, res) => {
 app.post('/api/admin/generate-qr-codes', requireAuth, async (req, res) => {
   const { count } = req.body;
   
-  if (!count || ![10, 50, 100].includes(count)) {
-    return res.status(400).json({ error: 'Count must be 10, 50, or 100' });
+  // Validate count is a positive integer between 1 and 1000
+  const numCount = parseInt(count, 10);
+  if (!numCount || numCount < 1 || numCount > 1000 || !Number.isInteger(numCount)) {
+    return res.status(400).json({ error: 'Count must be a positive integer between 1 and 1000' });
   }
 
   const qrCodes = [];
