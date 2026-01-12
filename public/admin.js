@@ -174,41 +174,43 @@ async function loadQRCodes() {
         // Store QR codes globally for print/download functions
         window.allQRCodes = qrCodes;
         
-        // Group QR codes by date (day)
-        const groupedByDate = {};
+        // Group QR codes by batch_id (each generation creates a new batch)
+        const groupedByBatch = {};
         qrCodes.forEach(qr => {
-            const date = new Date(qr.generated_at);
-            // Create date key in IST (YYYY-MM-DD format)
-            const istOffset = 5.5 * 60 * 60 * 1000;
-            const istDate = new Date(date.getTime() + istOffset);
-            const dateKey = istDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Use batch_id if available, otherwise group by generation time (for backward compatibility)
+            const batchKey = qr.batch_id || `batch_${new Date(qr.generated_at).getTime()}`;
             
-            if (!groupedByDate[dateKey]) {
-                groupedByDate[dateKey] = [];
+            if (!groupedByBatch[batchKey]) {
+                groupedByBatch[batchKey] = [];
             }
-            groupedByDate[dateKey].push(qr);
+            groupedByBatch[batchKey].push(qr);
         });
         
-        // Sort dates (newest first)
-        const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+        // Sort batches by generation time (newest first)
+        const sortedBatches = Object.keys(groupedByBatch).sort((a, b) => {
+            const batchA = groupedByBatch[a];
+            const batchB = groupedByBatch[b];
+            const timeA = new Date(batchA[0].generated_at).getTime();
+            const timeB = new Date(batchB[0].generated_at).getTime();
+            return timeB - timeA;
+        });
         
         // Build HTML for grouped list
         let html = '<div class="qr-groups-list">';
         
-        sortedDates.forEach((dateKey, groupIndex) => {
-            const groupQRCodes = groupedByDate[dateKey];
+        sortedBatches.forEach((batchKey, groupIndex) => {
+            const groupQRCodes = groupedByBatch[batchKey];
             const firstQR = groupQRCodes[0];
             const dateObj = new Date(firstQR.generated_at);
             const istOffset = 5.5 * 60 * 60 * 1000;
             const istDate = new Date(dateObj.getTime() + istOffset);
             
             // Format date and time for display
-            const dateDisplay = formatDateIST(firstQR.generated_at, true);
             const dateOnly = formatDateIST(firstQR.generated_at, false);
-            const timeDisplay = formatDateIST(firstQR.generated_at, true).split(' ')[1] + ' IST';
+            const dateTimeFull = formatDateIST(firstQR.generated_at, true);
             
             const groupId = `group-${groupIndex}`;
-            const escapedDateKey = escapeHtml(dateKey);
+            const escapedBatchKey = escapeHtml(batchKey);
             
             html += `
                 <div class="qr-group-item">
@@ -217,15 +219,15 @@ async function loadQRCodes() {
                             <span class="qr-group-toggle" id="toggle-${groupId}">▼</span>
                             <div class="qr-group-info">
                                 <span class="qr-group-date">${escapeHtml(dateOnly)}</span>
-                                <span class="qr-group-time">${escapeHtml(timeDisplay)}</span>
+                                <span class="qr-group-time">${escapeHtml(dateTimeFull)}</span>
                                 <span class="qr-group-count">(${groupQRCodes.length} QR code${groupQRCodes.length !== 1 ? 's' : ''})</span>
                             </div>
                         </div>
                         <div class="qr-group-actions">
-                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadGroupQRs('${escapedDateKey}', ${groupIndex})" title="Download all QR codes from this group as ZIP">
+                            <button class="btn btn-primary btn-small" onclick="event.stopPropagation(); downloadBatchQRs('${escapedBatchKey}', ${groupIndex})" title="Download all QR codes from this batch as ZIP">
                                 💾 Download ZIP (${groupQRCodes.length})
                             </button>
-                            <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteGroupQRs('${escapedDateKey}', ${groupIndex})" title="Delete all QR codes from this group">
+                            <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteBatchQRs('${escapedBatchKey}', ${groupIndex})" title="Delete all QR codes from this batch">
                                 🗑️ Delete All (${groupQRCodes.length})
                             </button>
                         </div>
@@ -582,8 +584,8 @@ function toggleGroup(groupId) {
     }
 }
 
-// Download all QR codes from a specific group
-async function downloadGroupQRs(dateKey, groupIndex) {
+// Download all QR codes from a specific batch
+async function downloadBatchQRs(batchKey, groupIndex) {
     if (typeof JSZip === 'undefined') {
         alert('ZIP functionality not available. Please download QR codes individually.');
         return;
@@ -615,14 +617,14 @@ async function downloadGroupQRs(dateKey, groupIndex) {
         const statusDiv = document.getElementById('generateStatus');
         if (statusDiv) {
             statusDiv.className = 'status-message info';
-            statusDiv.textContent = `Preparing ZIP file with ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}...`;
+            statusDiv.textContent = `Preparing ZIP file with ${batchQRCodes.length} QR code(s) from ${formatDateIST(batchQRCodes[0].generated_at, true)}...`;
         }
         
         const zip = new JSZip();
         const promises = [];
         
         // Fetch all QR code images and add them to ZIP
-        for (const qr of groupQRCodes) {
+        for (const qr of batchQRCodes) {
             const promise = fetch(`/qr_codes/${qr.id}.png`)
                 .then(response => {
                     if (!response.ok) {
@@ -650,9 +652,9 @@ async function downloadGroupQRs(dateKey, groupIndex) {
         // Create download link
         const link = document.createElement('a');
         const url = URL.createObjectURL(zipBlob);
-        const dateFormatted = dateKey.replace(/-/g, '');
+        const dateFormatted = formatDateIST(batchQRCodes[0].generated_at, true).replace(/[\/\s:]/g, '_').replace('_IST', '');
         link.href = url;
-        link.download = `QR_Codes_${dateFormatted}_${groupQRCodes.length}.zip`;
+        link.download = `QR_Codes_Batch_${dateFormatted}_${batchQRCodes.length}.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -663,7 +665,7 @@ async function downloadGroupQRs(dateKey, groupIndex) {
         // Show success message
         if (statusDiv) {
             statusDiv.className = 'status-message success';
-            statusDiv.textContent = `Successfully downloaded ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}!`;
+            statusDiv.textContent = `Successfully downloaded ${batchQRCodes.length} QR code(s) from batch generated at ${formatDateIST(batchQRCodes[0].generated_at, true)}!`;
             setTimeout(() => {
                 statusDiv.textContent = '';
             }, 3000);
@@ -763,35 +765,32 @@ async function deleteSelected() {
     }
 }
 
-// Delete all QR codes from a specific group
-async function deleteGroupQRs(dateKey, groupIndex) {
-    // Find all QR codes from this date group
-    const allGroups = {};
+// Delete all QR codes from a specific batch
+async function deleteBatchQRs(batchKey, groupIndex) {
+    // Find all QR codes from this batch
+    const allBatches = {};
     window.allQRCodes.forEach(qr => {
-        const date = new Date(qr.generated_at);
-        const istOffset = 5.5 * 60 * 60 * 1000;
-        const istDate = new Date(date.getTime() + istOffset);
-        const qrDateKey = istDate.toISOString().split('T')[0];
+        const batchId = qr.batch_id || `batch_${new Date(qr.generated_at).getTime()}`;
         
-        if (!allGroups[qrDateKey]) {
-            allGroups[qrDateKey] = [];
+        if (!allBatches[batchId]) {
+            allBatches[batchId] = [];
         }
-        allGroups[qrDateKey].push(qr);
+        allBatches[batchId].push(qr);
     });
     
-    const groupQRCodes = allGroups[dateKey] || [];
+    const batchQRCodes = allBatches[batchKey] || [];
     
-    if (groupQRCodes.length === 0) {
-        alert('No QR codes found for this group.');
+    if (batchQRCodes.length === 0) {
+        alert('No QR codes found for this batch.');
         return;
     }
 
-    if (!confirm(`Are you sure you want to delete all ${groupQRCodes.length} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}? This action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete all ${batchQRCodes.length} QR code(s) from batch generated at ${formatDateIST(batchQRCodes[0].generated_at, true)}? This action cannot be undone.`)) {
         return;
     }
 
     try {
-        const qrIds = groupQRCodes.map(qr => qr.id);
+        const qrIds = batchQRCodes.map(qr => qr.id);
         
         const response = await fetch(`${API_BASE}/admin/qr-codes`, {
             method: 'DELETE',
@@ -816,7 +815,7 @@ async function deleteGroupQRs(dateKey, groupIndex) {
             const statusDiv = document.getElementById('generateStatus');
             if (statusDiv) {
                 statusDiv.className = 'status-message success';
-                statusDiv.textContent = `Successfully deleted ${data.deletedCount} QR code(s) from ${formatDateIST(groupQRCodes[0].generated_at, false)}!`;
+                statusDiv.textContent = `Successfully deleted ${data.deletedCount} QR code(s) from batch generated at ${formatDateIST(batchQRCodes[0].generated_at, true)}!`;
                 setTimeout(() => {
                     statusDiv.textContent = '';
                 }, 3000);

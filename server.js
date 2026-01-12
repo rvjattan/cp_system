@@ -99,9 +99,38 @@ function initializeDatabase() {
     db.run(`
       CREATE TABLE IF NOT EXISTS qr_codes (
         id TEXT PRIMARY KEY,
-        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        batch_id TEXT
       )
     `);
+
+    // Add batch_id column if it doesn't exist (for existing databases)
+    db.get(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name='qr_codes'
+    `, (err, table) => {
+      if (table) {
+        db.all(`
+          PRAGMA table_info(qr_codes)
+        `, (err, columns) => {
+          if (!err) {
+            const hasBatchId = columns.some(col => col.name === 'batch_id');
+            if (!hasBatchId) {
+              db.run(`
+                ALTER TABLE qr_codes 
+                ADD COLUMN batch_id TEXT
+              `, (alterErr) => {
+                if (alterErr) {
+                  console.log('Error adding batch_id column:', alterErr.message);
+                } else {
+                  console.log('Added batch_id column to qr_codes table');
+                }
+              });
+            }
+          }
+        });
+      }
+    });
 
     // Vehicle entries table - stores vehicle details linked to QR codes
     db.run(`
@@ -343,6 +372,10 @@ app.post('/api/admin/generate-qr-codes', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Count must be a positive integer between 1 and 1000' });
   }
 
+  // Generate a unique batch ID for this generation session
+  const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const batchTimestamp = new Date().toISOString();
+
   const qrCodes = [];
   const errors = [];
 
@@ -372,9 +405,9 @@ app.post('/api/admin/generate-qr-codes', requireAuth, async (req, res) => {
         margin: 2
       });
 
-      // Store in database
+      // Store in database with batch_id
       await new Promise((resolve, reject) => {
-        db.run('INSERT INTO qr_codes (id) VALUES (?)', [qrId], (err) => {
+        db.run('INSERT INTO qr_codes (id, batch_id, generated_at) VALUES (?, ?, ?)', [qrId, batchId, batchTimestamp], (err) => {
           if (err) {
             // If duplicate key error, try generating a new ID
             if (err.message.includes('UNIQUE constraint') || err.message.includes('PRIMARY KEY')) {
@@ -403,6 +436,8 @@ app.post('/api/admin/generate-qr-codes', requireAuth, async (req, res) => {
   res.json({
     success: true,
     count: qrCodes.length,
+    batchId: batchId,
+    batchTimestamp: batchTimestamp,
     qrCodes,
     errors: errors.length > 0 ? errors : undefined
   });
@@ -414,6 +449,7 @@ app.get('/api/admin/qr-codes', requireAuth, (req, res) => {
     SELECT 
       qc.id,
       qc.generated_at,
+      qc.batch_id,
       ve.vehicle_number,
       ve.driver_name,
       ve.status,
