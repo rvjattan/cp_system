@@ -186,6 +186,9 @@ async function loadQRCodes() {
             groupedByBatch[batchKey].push(qr);
         });
         
+        // Store batch information globally for selection
+        window.allBatches = groupedByBatch;
+        
         // Sort batches by generation time (newest first)
         const sortedBatches = Object.keys(groupedByBatch).sort((a, b) => {
             const batchA = groupedByBatch[a];
@@ -216,6 +219,10 @@ async function loadQRCodes() {
                 <div class="qr-group-item">
                     <div class="qr-group-header" onclick="toggleGroup('${groupId}')">
                         <div class="qr-group-header-left">
+                            <div class="qr-batch-checkbox" onclick="event.stopPropagation();">
+                                <input type="checkbox" class="batch-checkbox" id="batch-${groupIndex}" value="${escapedBatchKey}" onchange="updateBatchSelectionCount()">
+                                <label for="batch-${groupIndex}"></label>
+                            </div>
                             <span class="qr-group-toggle" id="toggle-${groupId}">▼</span>
                             <div class="qr-group-info">
                                 <span class="qr-group-date">${escapeHtml(dateOnly)}</span>
@@ -275,6 +282,7 @@ async function loadQRCodes() {
         listDiv.innerHTML = html;
         
         updateSelectionCount();
+        updateBatchSelectionCount();
     } catch (error) {
         listDiv.innerHTML = `<p class="status-message error">Error loading QR codes: ${error.message}</p>`;
     }
@@ -301,6 +309,34 @@ function updateSelectionCount() {
         countElement.textContent = `${checked} of ${total} selected`;
         countElement.style.display = checked > 0 ? 'inline-block' : 'none';
     }
+}
+
+// Batch selection management
+function selectAllBatches() {
+    const checkboxes = document.querySelectorAll('.batch-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateBatchSelectionCount();
+}
+
+function deselectAllBatches() {
+    const checkboxes = document.querySelectorAll('.batch-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateBatchSelectionCount();
+}
+
+function updateBatchSelectionCount() {
+    const checked = document.querySelectorAll('.batch-checkbox:checked').length;
+    const total = document.querySelectorAll('.batch-checkbox').length;
+    const countElement = document.getElementById('batchSelectionCount');
+    if (countElement) {
+        countElement.textContent = `${checked} batch${checked !== 1 ? 'es' : ''} selected`;
+        countElement.style.display = checked > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function getSelectedBatchKeys() {
+    const checkboxes = document.querySelectorAll('.batch-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
 }
 
 function getSelectedQRIds() {
@@ -480,6 +516,182 @@ function printSelected() {
     }, 250);
 }
 
+// Download selected batches as ZIP file
+async function downloadSelectedBatches() {
+    const selectedBatchKeys = getSelectedBatchKeys();
+    
+    if (selectedBatchKeys.length === 0) {
+        alert('Please select at least one batch to download.');
+        return;
+    }
+    
+    // Check if JSZip is available
+    if (typeof JSZip === 'undefined') {
+        alert('ZIP functionality not available. Please download batches individually.');
+        return;
+    }
+    
+    // Collect all QR codes from selected batches
+    const selectedQRCodes = [];
+    let totalCount = 0;
+    
+    selectedBatchKeys.forEach(batchKey => {
+        const batchQRCodes = window.allBatches[batchKey] || [];
+        selectedQRCodes.push(...batchQRCodes);
+        totalCount += batchQRCodes.length;
+    });
+    
+    if (selectedQRCodes.length === 0) {
+        alert('No QR codes found in selected batches.');
+        return;
+    }
+    
+    try {
+        // Show loading message
+        const statusDiv = document.getElementById('generateStatus');
+        if (statusDiv) {
+            statusDiv.className = 'status-message info';
+            statusDiv.textContent = `Preparing ZIP file with ${totalCount} QR code(s) from ${selectedBatchKeys.length} batch${selectedBatchKeys.length !== 1 ? 'es' : ''}...`;
+        }
+        
+        const zip = new JSZip();
+        const promises = [];
+        
+        // Fetch all QR code images and add them to ZIP
+        for (const qr of selectedQRCodes) {
+            const promise = fetch(`/qr_codes/${qr.id}.png`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch QR code ${qr.id}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Add file to ZIP with descriptive name
+                    zip.file(`QR_Code_${qr.id}.png`, blob);
+                })
+                .catch(error => {
+                    console.error(`Error fetching QR code ${qr.id}:`, error);
+                    // Continue with other files even if one fails
+                });
+            
+            promises.push(promise);
+        }
+        
+        // Wait for all images to be fetched
+        await Promise.all(promises);
+        
+        // Generate ZIP file
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(zipBlob);
+        const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        link.href = url;
+        link.download = `QR_Codes_${selectedBatchKeys.length}_Batches_${totalCount}_${timestamp}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        if (statusDiv) {
+            statusDiv.className = 'status-message success';
+            statusDiv.textContent = `Successfully downloaded ${totalCount} QR code(s) from ${selectedBatchKeys.length} selected batch${selectedBatchKeys.length !== 1 ? 'es' : ''}!`;
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error creating ZIP file:', error);
+        alert(`Error creating ZIP file: ${error.message}. Please try downloading individually.`);
+    }
+}
+
+// Download all QR codes as ZIP file
+async function downloadAll() {
+    // Check if QR codes are loaded
+    if (!window.allQRCodes || window.allQRCodes.length === 0) {
+        alert('No QR codes available. Please refresh the list first.');
+        return;
+    }
+    
+    // Check if JSZip is available
+    if (typeof JSZip === 'undefined') {
+        alert('ZIP functionality not available. Please download QR codes individually.');
+        return;
+    }
+    
+    const allQRCodes = window.allQRCodes;
+    
+    try {
+        // Show loading message
+        const statusDiv = document.getElementById('generateStatus');
+        if (statusDiv) {
+            statusDiv.className = 'status-message info';
+            statusDiv.textContent = `Preparing ZIP file with all ${allQRCodes.length} QR code(s)...`;
+        }
+        
+        const zip = new JSZip();
+        const promises = [];
+        
+        // Fetch all QR code images and add them to ZIP
+        for (const qr of allQRCodes) {
+            const promise = fetch(`/qr_codes/${qr.id}.png`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch QR code ${qr.id}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // Add file to ZIP with descriptive name
+                    zip.file(`QR_Code_${qr.id}.png`, blob);
+                })
+                .catch(error => {
+                    console.error(`Error fetching QR code ${qr.id}:`, error);
+                    // Continue with other files even if one fails
+                });
+            
+            promises.push(promise);
+        }
+        
+        // Wait for all images to be fetched
+        await Promise.all(promises);
+        
+        // Generate ZIP file
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(zipBlob);
+        const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        link.href = url;
+        link.download = `QR_Codes_All_${allQRCodes.length}_${timestamp}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
+        // Show success message
+        if (statusDiv) {
+            statusDiv.className = 'status-message success';
+            statusDiv.textContent = `Successfully downloaded all ${allQRCodes.length} QR code(s) as ZIP file!`;
+            setTimeout(() => {
+                statusDiv.textContent = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error creating ZIP file:', error);
+        alert(`Error creating ZIP file: ${error.message}. Please try downloading individually.`);
+    }
+}
+
 // Download multiple selected QR codes as ZIP file
 async function downloadSelected() {
     const selectedIds = getSelectedQRIds();
@@ -591,24 +803,11 @@ async function downloadBatchQRs(batchKey, groupIndex) {
         return;
     }
     
-    // Find all QR codes from this date group
-    const allGroups = {};
-    window.allQRCodes.forEach(qr => {
-        const date = new Date(qr.generated_at);
-        const istOffset = 5.5 * 60 * 60 * 1000;
-        const istDate = new Date(date.getTime() + istOffset);
-        const qrDateKey = istDate.toISOString().split('T')[0];
-        
-        if (!allGroups[qrDateKey]) {
-            allGroups[qrDateKey] = [];
-        }
-        allGroups[qrDateKey].push(qr);
-    });
+    // Get all QR codes from this batch
+    const batchQRCodes = window.allBatches && window.allBatches[batchKey] ? window.allBatches[batchKey] : [];
     
-    const groupQRCodes = allGroups[dateKey] || [];
-    
-    if (groupQRCodes.length === 0) {
-        alert('No QR codes found for this group.');
+    if (batchQRCodes.length === 0) {
+        alert('No QR codes found for this batch.');
         return;
     }
     
@@ -767,18 +966,8 @@ async function deleteSelected() {
 
 // Delete all QR codes from a specific batch
 async function deleteBatchQRs(batchKey, groupIndex) {
-    // Find all QR codes from this batch
-    const allBatches = {};
-    window.allQRCodes.forEach(qr => {
-        const batchId = qr.batch_id || `batch_${new Date(qr.generated_at).getTime()}`;
-        
-        if (!allBatches[batchId]) {
-            allBatches[batchId] = [];
-        }
-        allBatches[batchId].push(qr);
-    });
-    
-    const batchQRCodes = allBatches[batchKey] || [];
+    // Get all QR codes from this batch
+    const batchQRCodes = window.allBatches && window.allBatches[batchKey] ? window.allBatches[batchKey] : [];
     
     if (batchQRCodes.length === 0) {
         alert('No QR codes found for this batch.');

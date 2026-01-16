@@ -454,6 +454,20 @@ header > div {
     accent-color: #667eea;
 }
 
+.qr-batch-checkbox {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.qr-batch-checkbox input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    accent-color: #fff;
+    margin-right: 5px;
+}
+
 .qr-card-actions {
     margin-top: 10px;
 }
